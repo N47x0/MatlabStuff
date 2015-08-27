@@ -11,7 +11,8 @@ V  = 886.78;
 % State Space Realization
 A = [Za 1; Ma 0];
 B = [Zd; Md];
-C = [1 0];%C = [Za*V 0];
+C = [Za*V 0]; %C = [1 0];
+D = [Zd*V];
 
 % Check Controllable system
 Pc = [B A*B];
@@ -22,7 +23,7 @@ else
     A_w = [0 C;
            0 A(1,:);
            0 A(2,:)];
-    B_w = [0; B];
+    B_w = [D; B];
     
     if (rank([B_w A_w*B_w]) ~= rank(A_w))
         disp('The wiggle system is not controllable');
@@ -33,24 +34,57 @@ else
         R = 1;
         xeig=[];
         qq = logspace(-3,2,100);
-        
-        xopenloop = eig(A_w);
         w = logspace(-2,2,100);
         t = linspace(0,1);
         
-        B_cl = [-1;0;0];
-        C_cl = eye(size(A_w));
-        D_cl = 0.*C_cl*B_cl;
+        wn = 11;    %Hz for the actuator natural freq.
+        ze = 0.707; %Damping ratio for second order actuator model.
+        
+        % Forming Plant Model for Analysis (w/ actuator)
+        Ap = [A             B    zeros(2,1);
+              zeros(1,3)            1;
+              zeros(1,2) -wn*wn -2*ze*wn];
+        Bp = [0;0;0;wn*wn];
+        Cp = [C D 0;
+              ones(4)];
+        Dp = [zeros(size(Cp,1),1)];
+        
+         % Form Common Controller (Static Part)
+        Ac = 0;
+        Bc1 = [1 zeros(1,4)];
+        Bc2 = -[1];
+        Dc2 = 0;
+            
         rtd = 180/pi;
         
+        
+        
         for i = 1:prod(size(qq));
+            
+            % Iterate LQR gains.
             Q(1,1) = qq(i);
             [K_w, S_w, E_w] = lqr(A_w, B_w, Q, R);
-            A_cl = A_w - B_w*K_w;
+            
+            % Feed LQR gains to common controller.
+            Cc  = -[K_w(1)];
+            Dc1 = [0 -K_w(2) -K_w(3) 0 0];
+            
+            % Form new closed loop system.
+            [A_cl, B_cl, C_cl, D_cl] = cccl(Ap, Bp, Cp, Dp, Ac, Bc1, Bc2, Cc, Dc1, Dc2);
+            
+            %A_cl = A_w - B_w*K_w;
+            
+            
             xx = eig(A_cl);
             xeig = [xeig;xx];
-            [re,im] = nyquist(A_w,B_w,K_w,0,1,w); %wont work with Common Controller
-            L=(re+sqrt(-1)*im)';
+            
+            L = ss(lgin(Ap,Bp,Cp,Dp,Ac,Bc1,Cc,Dc1));
+            
+            [re,im] = nyquist(L, w);
+            %L=(re+sqrt(-1)*im)';
+            
+            
+            % Generate Analysis metrics
             mag = abs(L);
             stabRob = ones(size(L))+ones(size(L))./L;
             minStabRob = min(abs(stabRob));
