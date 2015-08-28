@@ -78,23 +78,26 @@ else
             xx = eig(A_cl);
             xeig = [xeig;xx];
             
+            % Form Loop gain at the input
             L = ss(lgin(Ap,Bp,Cp,Dp,Ac,Bc1,Cc,Dc1));
             
-            [re,im] = nyquist(L, w);
-            %L=(re+sqrt(-1)*im)';
+            % Obtain margins and crossover freq.
+            [re,im] = nyquist(L,w);
+            
+            wc = Wgm;
             
             
             % Generate Analysis metrics
-            mag = abs(L);
+            %mag = abs(L);
             stabRob = ones(size(L))+ones(size(L))./L;
             minStabRob = min(abs(stabRob));
             retDiff = ones(size(L))+L;
             minRetDiff = min(abs(retDiff));
-            mag_dB = 20.*log10(mag)';
-            wc = crosst(mag_dB, w);
+            %mag_dB = 20.*log10(mag)';
+            %wc = crosst(mag_dB, w);
             wiggle_sys = ss(A_cl, B_cl, C_cl, D_cl);
             y = step(wiggle_sys, t);
-            az = y(:,2);
+            az = y(:,1);
             aze = abs(ones(size(az))-az);
             tau_r = 0;
             tau_s = 0;
@@ -107,8 +110,8 @@ else
             tau_s = crosst(e_n1,t);
             azmin = (abs(min(az)))*100;
             azmax = (abs(max(az))-1)*100;
-            dmax = rtd*max(abs(y(:,2)))*32.174;
-            ddmax = rtd*max(abs(y(:,3)))*32.174;
+            dmax = rtd*max(abs(y(:,4)))*32.174;
+            ddmax = rtd*max(abs(y(:,5)))*32.174;
             metric=[ qq(i) minRetDiff minStabRob wc tau_r tau_s azmin azmax dmax ddmax];
             data(i,:) = metric;
             
