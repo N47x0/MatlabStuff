@@ -71,10 +71,7 @@ else
             
             % Form new closed loop system.
             [A_cl, B_cl, C_cl, D_cl] = cccl(Ap, Bp, Cp, Dp, Ac, Bc1, Bc2, Cc, Dc1, Dc2);
-            
-            %A_cl = A_w - B_w*K_w;
-            
-            
+
             xx = eig(A_cl);
             xeig = [xeig;xx];
             
