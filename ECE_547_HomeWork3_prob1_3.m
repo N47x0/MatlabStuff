@@ -93,7 +93,7 @@ else
             mag_dB = 20.*log10(mag)';
             wc = crosst(mag_dB, w);
             wiggle_sys = ss(A_cl, B_cl, C_cl, D_cl);
-            step(wiggle_sys, t)
+            %step(wiggle_sys, t)
             y = step(wiggle_sys, t);
             az = y(:,1);
             aze = abs(ones(size(az))-az);
