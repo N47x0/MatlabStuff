@@ -66,8 +66,8 @@ else
             [K_w, S_w, E_w] = lqr(A_w, B_w, Q, R);
             
             % Feed LQR gains to common controller.
-            Cc  = -[K_w(1)];
-            Dc1 = -[0 K_w(2) K_w(3) 0 0];
+            Cc  = [K_w(1)];
+            Dc1 = [0 K_w(2) K_w(3) 0 0];
             
             % Form new closed loop system.
             [A_cl, B_cl, C_cl, D_cl] = cccl(Ap, Bp, Cp, Dp, Ac, Bc1, Bc2, Cc, Dc1, Dc2);
