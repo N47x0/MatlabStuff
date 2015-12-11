@@ -58,32 +58,7 @@ function child = MakeChild(rand_route, parent)
     for n=1:length(find(rand_route))
         reassign_metrics = [];
         new_routes = [];
-        for r=1:nR   
-            
-            % Debugging statement
-%             temp = 0;
-%             g = 0;
-%             rand_route=rand_route(find(rand_route));
-%             if (n>1)
-%                 temp = rand_route(n-1);
-%                 rand_route(n-1) = [];
-%                 g = n-1;
-%             end
-%             [~,c] = ismember(temp_child.routes,rand_route);
-%             u = unique(temp_child.routes);
-%             if((find(c)))
-%                 disp('wtf')
-%             elseif(size(u,1)<(100-length(rand_route)))
-%                 disp('wtf')
-%             end
-%             if (n>1)
-%                 rand_route(g) = temp;
-%             end
-%             if(r>size(temp_child.routes,1))
-%                 breakp
-%             end
-%             tmp_routes = temp_child.routes;
-           
+        for r=1:nR           
             rand_route=rand_route(find(rand_route));
             [feasible_insert, route_cost, new_route] = InsertionTest(rand_route(n),temp_child.routes(r,:));
             new_routes = [new_routes; new_route];
@@ -91,34 +66,6 @@ function child = MakeChild(rand_route, parent)
             if (~feasible_insert)
                 reassign_metrics(r,3) = 0;
             end
-            
-%             % Debugging statement
-%             if(tmp_routes ~= temp_child.routes)
-%                 disp('Insert fing up')
-%             end      
-%             % Debugging statement
-%             temp = 0;
-%             g = 0;
-%             rand_route=rand_route(find(rand_route));
-%             if (n>1)
-%                 temp = rand_route(n-1);
-%                 rand_route(n-1) = [];
-%                 g = n-1;
-%             end
-%             [~,c] = ismember(temp_child.routes,rand_route);
-%             u = unique(temp_child.routes);
-%             if((find(c)))
-%                 disp('wtf')
-%             elseif(size(u,1)<(100-length(rand_route)))
-%                 disp('wtf')
-%             end
-%             if (n>1)
-%                 rand_route(g) = temp;
-%             end
-%             if(r>size(temp_child.routes,1))
-%                 breakp
-%             end
-            
         end
         % If InsertionTest failed on all available routes.
         % Then create a new, single node route. Note: Single node
@@ -146,17 +93,6 @@ function child = MakeChild(rand_route, parent)
             temp_child.routeCosts(route_idx) = min_route_cost;
             new_routes = [];
             reassign_metrics = [];
-            
-            %Debugging Statement
-            temp_child.chromo = [];
-            for i=1:temp_child.numRoutes
-                temp_child.chromo = [temp_child.chromo temp_child.routes(i,find(temp_child.routes(i,:)))];
-            end
-            
-            %Debugging Statement
-%             if (length(temp_child.chromo) > 100)
-%                 breakp;
-%             end
         end
     end
         
@@ -165,8 +101,6 @@ function child = MakeChild(rand_route, parent)
     for i=1:temp_child.numRoutes
         temp_child.chromo = [temp_child.chromo temp_child.routes(i,find(temp_child.routes(i,:)))];
     end
-    
-    
     
     temp_child.totCost = sum(temp_child.routeCosts);
     temp_child.paretoRank = Inf; %unknown rank for now.
