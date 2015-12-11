@@ -3,17 +3,21 @@
 clc
 clear all
 
-%Consider removing first element (as the depot)
+
 global c101; 
 global max_cap;
 global cost;
 global depot_node;
+global printing;
+global pop_size;
+
+printing = 1;
+
 c101 = load('solomonC101.dat');
 max_cap = 200;
 
-% Save the first node as depot [and remove from the list.] cancelled
+% Save the first node as depot.
 depot_node = c101(1,:);
-%c101([1], :)=[];
 
 % Create Cost Table
 numNodes = size(c101, 1);
@@ -31,11 +35,10 @@ end
 
 % In keeping with the 4*tot_bits method discussed in class, but because
 % this problem setup is using "gene/integer/Natural" level encoding,
-% we will have a population size of 4*num_individuals. The minus one
+% we will have a population size of 4*num_genes. The minus one
 % accounts for the depot_node in the data set that is not part of the
-% population.
+% customers/node base (gene:customer 1:1 mapping).
 pop_size = 4*(size(c101,1) - 1);
-
 
 init_gen = []; 
 %Initial Generation:
@@ -48,6 +51,8 @@ end
 
 pareto_matrix = [];
 
+
+% Setting up the initial population:
 for c=1:pop_size
     chromo = init_gen(c,:);
     
@@ -130,181 +135,102 @@ for c=1:pop_size
     end
     % Sanity check: Sum of nodes visited must equal number of genes.
     assert(sum(route_metrics(:,2)) == numel(chromo));
-    
-   
+
     num_routes = size(routes, 1);
     total_cost = sum(route_metrics(:,1));
     
     % Saving important information for the individual in the current
     % generation struct.
-    currGen(c).chromo = c;
+    
+    currGen(c).chromo = chromo;
     currGen(c).routes = routes;
+    currGen(c).routeCosts = route_metrics(:,1);
     currGen(c).numRoutes = num_routes;
     currGen(c).totCost = total_cost;
+    currGen(c).paretoRank = Inf;
     
     % pareto_matrix has 4 columns per individual/chromosome:
     % node that when we first build this rank is Inf
-    %                              rank num_routes total cost chromo_idx
-    pareto_matrix = [pareto_matrix; Inf num_routes total_cost c];
+    %                                           rank                num_routes      total_cost    chromo_idx
+    %pareto_matrix = [pareto_matrix; currGen(c).paretoRank currGen(c).numRoutes currGen(c).totCost c];
     
 end
 
-temp_ranks = [];
-rank = 1;
-currentRank = 1;
-n = pop_size;
 % Pareto Ranking (non-domination) of each individual
-while (n > 0)
-    for c=1:n
-        rank = currentRank;
-        for cc=1:n
-            if ( (   pareto_matrix(c,2) > pareto_matrix(cc,2) ...
-                 &&  pareto_matrix(c,3) >= pareto_matrix(cc,3) ) ...
-              || (   pareto_matrix(c,2) >= pareto_matrix(cc,2) ...
-                 &&  pareto_matrix(c,3) > pareto_matrix(cc,3)) ) 
+currGen = ParetoRanking(currGen);
 
-                rank = currentRank + 1;
-                break;
-            else
-                continue;
-            end
-        end
-        pareto_matrix(c,1) = rank;
+
+% This is the main loop.
+current_best = currGen().paretoRank(pareto_matrix(:,1)==1,:);
+maxGens = 400;
+for gens=1:maxGens
+    % Pareto Ranking (non-domination) of each individual
+    pareto_matrix = ParetoRanking(pareto_matrix);
+    
+    % Size of current best can vary. These are all the rank 1's. After
+    % tournament and crossover/mutation and ranking, we will replace these
+    % individuals with the next generation's worst individuals. This will
+    % ensure they compete. Elitist method.
+    temp_best = pareto_matrix(pareto_matrix(:,1)==1,:);
+    best_comp = [current_best; temp_best];
+    
+    best_comp = ParetoRanking(best_comp);
+    
+    current_best = best_comp(best_comp(:,1)==1,:);
+    best_of_gen = currGen(current_best(1,4));
+
+    % Tournament
+    % The population is randomly broken into sets of 4. The fittest individual
+    %  (using pareto-ranking) is selected as a parent. Each parent is combined
+    %  with the others to produce 2 children per pairing, such that 
+    rank_sorted = sortrows(pareto_matrix,1);
+    best_quarter = rank_sorted([1:pop_size/4],:);
+    rank_sorted([1:pop_size/4],:) = [];
+
+    % Select the remaining quarter.
+    rand_idxs = randperm(pop_size/4);
+    rand_quarter = rank_sorted(rand_idxs, :);
+    parents = [best_quarter; best_quarter];
+
+    printing = 0;
+    newGen = [];
+    pareto_matrix = [];
+    gen_idx = 0;
+    % Form pairings
+    mix_parents_idx = randperm(size(parents,1));
+    for i=2:2:(size(parents,1))
+        pA = currGen(parents(mix_parents_idx(i-1)));
+        pB = currGen(parents(mix_parents_idx(i)));
+
+        [cA,cB] = CrossoverOp(pA,pB);
         
+        %gen_idx = i/2;
+        newGen = [newGen pA pB cA cB];
+        pareto_matrix = [pareto_matrix; ... 
+                         pA.paretoRank pA.numRoutes pA.totCost gen_idx+1; ...
+                         pB.paretoRank pB.numRoutes pB.totCost gen_idx+2; ...
+                         cA.paretoRank cA.numRoutes cA.totCost gen_idx+3; ...
+                         cB.paretoRank cB.numRoutes cB.totCost gen_idx+4;];
+        gen_idx = gen_idx + 4;
     end
-    temp_ranks = [temp_ranks; pareto_matrix(pareto_matrix(:,1)==currentRank,:)];
-    
-    pareto_matrix(pareto_matrix(:,1)==currentRank,:) = [];
-    n = pop_size - size(temp_ranks, 1);
-    currentRank = currentRank +1;
-end
-% v_sorted = sortrows(pareto_matrix,2);
-% c_sorted = sortrows(pareto_matrix,3);
-% r_sorted = sortrows(pareto_matrix,1)
 
-pareto_matrix = temp_ranks;
+    lastGen = currGen;
+    currGen = newGen;
 
-% Size of current best can vary. These are all the rank 1's. After
-% tournament and crossover/mutation and ranking, we will replace these
-% individuals with the next generation's worst individuals. This will
-% ensure they compete.
-current_best = pareto_matrix(pareto_matrix(:,1)==1,:);
-current_best = currGen(current_best(1,1));
-
-% Tournament
-% The population is randomly broken into sets of 4. The fittest individual
-%  (using pareto-ranking) is selected as a parent. Each parent is combined
-%  with the others to produce 2 children per pairing, such that 
-rank_sorted = sortrows(pareto_matrix,1);
-best_quarter = rank_sorted([1:pop_size/4],:);
-rank_sorted([1:pop_size/4],:) = [];
-
-% Select the remaining quarter.
-rand_idxs = randperm(pop_size/4);
-rand_quarter = rank_sorted(rand_idxs, :);
-parents = [best_quarter; rand_quarter];
-
-children = [];
-% Form pairings
-mix_parents_idx = randperm(size(parents,1));
-for i=2:2:(size(parents,1)/2)
-    pA = currGen(parents(mix_parents_idx(i-1)));
-    pB = currGen(parents(mix_parents_idx(i)));
+    % What is left:
+    % -- Use elitist method (keep best individual - lowest total distance)
+    % - Need to define mutation operator: 
+    % -- only if there is time.
+    % - Then pareto-rank again.
+    % - Repeat.
     
-    % Perform Crossover.
-    % Child A/B = Parent A/B
-    % Select a random route from Parent A/B. Discard the nodes in that
-    % route in Child B/A
-    cA = pA;
-    cB = pB;
-    idx = randperm(cA.numRoutes);
-    rand_routeA = cA.routes(idx(1),:);
-    idx = randperm(cB.numRoutes);
-    rand_routeB = cB.routes(idx(1));
+    % Display results: printing = 1
+    PlotRoute(best_of_gen, 1);
+    after=0;
     
-    for r=1:cB.numRoutes
-        route = cB.routes(r,:);
-        [~,ismem] = ismember([rand_routeA], route);
-        route([ismem(find(ismem))]) = [];
-        route = [route zeros(1,(numNodes-numel(route)))];
-        cB.routes(r,:) = route(:);
-    end
-    
-    empty_row_idx = find(~cB.routes(:,1));
-    
-    if(empty_row_idx)
-       cB.routes(empty_row_idx,:) = [];
-       cB.numRoutes = cB.numRoutes - 1;
-    end
-    
-    reassign_metrics = [];
-    new_routes = [];
-    for n=1:length(find(rand_routeA))
-        for r=1:cB.numRoutes
-            [feasible_insert, route_cost, new_route] = InsertionTest(rand_routeA(n),cB.routes(r,:));
-            new_routes = [new_routes; new_route];
-            reassign_metrics = [reassign_metrics; feasible_insert route_cost];
-        end
-    end
-    
-    reassign_metrics(all(reassign_metrics==0,2),:) = [];
-    new_routes(all(new_routes==0,2),:) = [];
-    
-    route_costs = reassign_metrics(:,2);
-    min_route_cost = min(route_costs);
-    min_idx = find(reassign_metrics(:,2)==min(min(reassign_metrics(:,2))));
-    
-    cB.routes = [cB.routes; new_routes(min_idx)];
-    cB.numRoutes = cB.numRoutes + 1;
-    
-    children = [children cB];
-    
-end
-
-
-% What is left:
-% - Need to define how many individuals to pit in competition:
-% -- Tournament Stage/Parent Selection.
-% -- Use elitist method (keep best individual - lowest total distance)
-% - Select Parents:
-% - Need to define crossover operator:
-% -- Then randomly select a route from a parent(A) and reassign the nodes
-%    in that route within parent(B). Select best reassignment. If all
-%    reasignments are infeasible, create new route.
-% - Need to define mutation operator: 
-% -- only if there is time.
-% -- Then pareto-rank again.
-% -- Repeat.
-
-
-% Display results: printing = 1
-printing = 0;
-
-if printing
-    clf
-    figure(1)
-    hold on
-    grid on
-
-    for i=1:numNodes
-        plot(c101(i,2),c101(i,3),'o'); 
-    end
-    
-    for i=1:current_best.numRoutes
-        x = [depot_node(2)];
-        y = [depot_node(3)];
-        nextPoint = [];
-        numPaths = size(find(current_best.routes(i,:)),2);
-        for j=1:numPaths
-            x = [x c101(current_best.routes(i,j),2)];
-            y = [y c101(current_best.routes(i,j),3)];
-            if (j == numPaths)
-                x = [x depot_node(2)];
-                y = [y depot_node(3)];
-            end
-            plot(x,y,'-r');
-        end
-        
+    if printing
+        disp(['GA Iteration    BestNRoutes BestCost']);
+        disp([sprintf('    %d         %d   %d',gens,best_of_gen.numRoutes,best_of_gen.totCost)]);
     end
 end
 
