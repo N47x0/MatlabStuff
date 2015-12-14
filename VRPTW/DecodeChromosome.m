@@ -1,11 +1,11 @@
-function [routes, route_metrics] = DecodeChromosome(chromo)
+function [individual] = DecodeChromosome(chromo)
     
     global c101;
     global cost;
     global depot_node;
     global max_cap;
     
-    numNodes = size(c101, 1);
+    numNodes = size(c101, 1) - 1;
     
     % Initialize new individual's parameters
     routes = [];
@@ -91,4 +91,10 @@ function [routes, route_metrics] = DecodeChromosome(chromo)
     end
     % Sanity check: Sum of nodes visited must equal number of genes.
     assert(sum(route_metrics(:,2)) == numel(chromo))
+    individual.chromo = chromo;
+    individual.routes = routes;
+    individual.routeCosts = route_metrics(:,1);
+    individual.numRoutes = size(routes, 1);
+    individual.totCost = sum(route_metrics(:,1));
+    individual.paretoRank = Inf;
 end

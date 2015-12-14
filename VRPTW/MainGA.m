@@ -49,32 +49,15 @@ for i=1:pop_size
     init_gen = [init_gen; rp];
 end
 
-pareto_matrix = [];
-
-
 % Setting up the initial population:
 for c=1:pop_size
     chromo = init_gen(c,:);
     
-    [routes, route_metrics] = DecodeChromosome(chromo);
+    new_individual = DecodeChromosome(chromo);
 
-    num_routes = size(routes, 1);
-    total_cost = sum(route_metrics(:,1));
-    
     % Saving important information for the individual in the current
     % generation struct.
-    
-    currGen(c).chromo = chromo;
-    currGen(c).routes = routes;
-    currGen(c).routeCosts = route_metrics(:,1);
-    currGen(c).numRoutes = num_routes;
-    currGen(c).totCost = total_cost;
-    currGen(c).paretoRank = Inf;
-    
-    % pareto_matrix has 4 columns per individual/chromosome:
-    % node that when we first build this rank is Inf
-    %                                           rank                num_routes      total_cost    chromo_idx
-    %pareto_matrix = [pareto_matrix; currGen(c).paretoRank currGen(c).numRoutes currGen(c).totCost c];
+    currGen(c) = new_individual;
     
 end
 
@@ -155,6 +138,12 @@ for gens=1:maxGens
     for i=2:2:(size(parents,2))
         pA = parents(mix_parents_idx(i-1));
         pB = parents(mix_parents_idx(i));
+        
+        if (rand() < 0.1)
+            mutant = randperm(101);
+            mutant(mutant==1) = [];
+            pA = DecodeChromosome(mutant);
+        end
 
         [cA,cB] = CrossoverOp(pA,pB);
         pA.paretoRank = Inf;
@@ -162,7 +151,6 @@ for gens=1:maxGens
         newGen = [newGen pA pB cA cB];
     end
 
-    %lastGen = currGen;
     currGen = newGen;
 
     % What is left:
@@ -185,6 +173,7 @@ for gens=1:maxGens
     end
     
     figure(2)
+    clf
     plot(routeNums,totCosts);
     
 end

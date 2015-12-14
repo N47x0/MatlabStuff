@@ -11,9 +11,70 @@ function [child_A, child_B] = CrossoverOp(parent_A, parent_B)
     idx = randperm(cB.numRoutes);
     rand_routeB = cB.routes(idx(1));
     
-    child_A = MakeChild(rand_routeB,cA);
-    child_B = MakeChild(rand_routeA,cB);
+    %child_A = MakeChild(rand_routeB,cA);
+    %child_B = MakeChild(rand_routeA,cB);
+    
+    
+    child_A = TestRouteInsertion(parent_A, rand_routeB);
+    child_B = TestRouteInsertion(parent_B, rand_routeA);
 
+end
+
+function child = TestRouteInsertion(parent, rand_route)
+    rand_route = rand_route(find(rand_route));
+    arb_insert_idx = randperm(numel(rand_route));
+    child = parent;
+    for i=1:numel(rand_route)
+        child = ChromoTest(child, rand_route(arb_insert_idx(i)));
+    end
+end
+
+function [new_child] = ChromoTest(parent, node)
+
+    t_chromo = parent.chromo;
+    t_chromo(t_chromo==node) = [];
+    
+    for i=1:numel(t_chromo+1)
+        testChromo = InsertNodeIntoChromo(node, t_chromo, i);
+        cand_childs(i) = DecodeChromosome(testChromo);
+    end
+    % Options here:
+    % (1) we can pareto-rank the candidates (likely expensive) and select
+    %     on best criteria..whaterver that means...?
+         cand_childs = ParetoRanking(cand_childs);
+    
+    % (2) we can extract the abs min cost and num vehicles and use one
+    %     arbitrarily.
+    %
+%     if (rand() > 0.5)
+%         totCosts = [cand_childs.totCost];
+%         [min_cost, min_idx] = min(totCosts);
+%         new_child = cand_childs(min_idx);
+%     else
+%        minRoutes = [cand_childs.numRoutes];
+%        [min_routes, min_idx] = min(minRoutes);
+%        minRoutes(minRoutes~=min_routes) = [];
+%        
+%     end
+
+    ranks = [cand_childs.paretoRank];
+    best_childs = cand_childs(ranks(:)==1);
+    min_idx = 0;
+    if (rand() > 0.5)
+        totCosts = [best_childs.totCost];
+        [min_cost, min_idx] = min(totCosts);
+    else
+        minRoutes = [best_childs.numRoutes];
+        [min_routes, min_idx] = min(minRoutes);
+    end
+    new_child = best_childs(min_idx);
+    
+end
+
+function [new_chromo] = InsertNodeIntoChromo(node, t_chromo, insertion_idx)
+    new_chromo = zeros(1,length(t_chromo)+1);
+    new_chromo(insertion_idx) = node;
+    new_chromo(~new_chromo) = t_chromo;
 end
 
 function child = MakeChild(rand_route, parent)
@@ -159,3 +220,4 @@ function child = MakeChild(rand_route, parent)
     child = temp_child;
     
 end
+
