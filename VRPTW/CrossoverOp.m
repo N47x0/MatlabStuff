@@ -52,62 +52,94 @@ function child = MakeChild(rand_route, parent)
        temp_child.numRoutes = temp_child.numRoutes - length(empty_rows);
        temp_child.routeCosts(empty_rows,:) = [];
     end
-
+    
+    debug_child = temp_child;
+    
+    % Reset chromosome to update with new route info.
+    temp_child.chromo = [];
     new_routes = [];
     nR = temp_child.numRoutes;
-    for n=1:length(find(rand_route))
+    nodes_to_replace = length(find(rand_route));
+    rand_route_idxs = randperm(nodes_to_replace);
+    
+    for n=1:nodes_to_replace
         reassign_metrics = [];
-        for r=1:nR
-            % Debugging statement
-            if (nR > size(temp_child.routes,1))
-                breakp;
-            end
-            
-            [feasible_insert, route_cost, new_route] = InsertionTest(rand_route(n),temp_child.routes(r,:));
+        new_routes = [];
+        for r=1:nR           
+            rand_route=rand_route(find(rand_route));
+            [feasible_insert, route_cost, new_route] = InsertionTest(rand_route(rand_route_idxs(n)),temp_child.routes(r,:));
             new_routes = [new_routes; new_route];
             reassign_metrics = [reassign_metrics; feasible_insert route_cost r];
+            
             if (~feasible_insert)
                 reassign_metrics(r,3) = 0;
             end
-            
         end
         % If InsertionTest failed on all available routes.
         % Then create a new, single node route. Note: Single node
         % routes are always feasible.
         if(~size(find(reassign_metrics),1))
-            temp_child.routes = [temp_child.routes; [rand_route(n) zeros(1,numNodes-1)]];
+            temp_child.routes = [temp_child.routes; [rand_route(rand_route_idxs(n)) zeros(1,numNodes-1)]];
             temp_child.numRoutes = temp_child.numRoutes + 1;
-            temp_child.routeCosts = [temp_child.routeCosts; cost(depot_node(1),rand_route(n))*2];
-            %disp('Insertion Failed!');
+            temp_child.routeCosts = [temp_child.routeCosts; cost(depot_node(1),rand_route(rand_route_idxs(n)))*2];
+            
+            if (printing)
+                disp(['Insertion Failed! Adding Node: ',int2str(rand_route(rand_route_idxs(n))),' as own route.']);
+            end
+            %debugging
+            uni_routes = [];
+            for i=1:temp_child.numRoutes
+                uni_routes = [uni_routes temp_child.routes(i,find(temp_child.routes(i,:)))];
+            end
+
+           
+        else
+            if (printing)
+                disp(['Insertion Possible: Selecting Optimal location for node:',int2str(rand_route(rand_route_idxs(n)))]);
+            end
+            % Remove empty rows
+            reassign_metrics(all(reassign_metrics==0,2),:) = [];
+            new_routes(all(new_routes==0,2),:) = [];
+
+            % If new updated routes were found.
+            if (size(find(new_routes),1))
+                route_costs = reassign_metrics(:,2);
+                min_route_cost = min(route_costs);
+                min_idx = find(reassign_metrics(:,2)==min(min(reassign_metrics(:,2))));
+
+                % Update new individual's parameters
+                route_idx = reassign_metrics(min_idx(1),3);
+                temp_child.routes(route_idx,:) = new_routes(min_idx(1),:);
+                temp_child.routeCosts(route_idx) = min_route_cost;
+                %new_routes = [];
+                %reassign_metrics = [];
+            end
         end
-        
-        % Remove empty rows
-        reassign_metrics(all(reassign_metrics==0,2),:) = [];
-        new_routes(all(new_routes==0,2),:) = [];
-
-        % If new updated routes were found.
-        if (size(find(new_routes),1))
-            route_costs = reassign_metrics(:,2);
-            min_route_cost = min(route_costs);
-            min_idx = find(reassign_metrics(:,2)==min(min(reassign_metrics(:,2))));
-
-            % Update new individual's parameters
-            route_idx = reassign_metrics(min_idx,3);
-            temp_child.routes(route_idx,:) = new_routes(min_idx,:);
-            temp_child.routeCosts(route_idx) = min_route_cost;
+        %debugging
+        uni_routes = [];
+        for i=1:temp_child.numRoutes
+            uni_routes = [uni_routes temp_child.routes(i,find(temp_child.routes(i,:)))];
+        end
+        if(length(unique(uni_routes))~=100-(nodes_to_replace-n))
+            disp('wtf')
         end
     end
         
-    % Reset chromosome to update with new route info.
+
+    
+   % Reset chromosome to update with new route info.
     temp_child.chromo = [];
     for i=1:temp_child.numRoutes
         temp_child.chromo = [temp_child.chromo temp_child.routes(i,find(temp_child.routes(i,:)))];
     end
-    
-    %Debugging Statement
-    if (length(temp_child.chromo) > 100)
-        breakp
+
+   
+    if(length(temp_child.chromo)>100)
+        error('Chromosome too long');
+    elseif(length(temp_child.chromo)<100)
+        error('Chromosome too short');
     end
+   
     
     temp_child.totCost = sum(temp_child.routeCosts);
     temp_child.paretoRank = Inf; %unknown rank for now.
