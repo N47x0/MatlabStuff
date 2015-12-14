@@ -35,7 +35,7 @@
 % 
 % end
 
-function ranking_sorted = pareto_ranking(generation)
+function ranking = pareto_ranking(generation)
     
     temp_gen = generation';
     rank = 1;
@@ -51,7 +51,7 @@ function ranking_sorted = pareto_ranking(generation)
                 if ( (   temp_gen(c).numRoutes >  temp_gen(cc).numRoutes ...
                      &&  temp_gen(c).totCost   >= temp_gen(cc).totCost ) ...
                   || (   temp_gen(c).numRoutes >= temp_gen(cc).numRoutes ...
-                     &&  temp_gen(c).totCost   >  temp_gen(cc).totCost) ) 
+                     &&  temp_gen(c).totCost   >  temp_gen(c).totCost) ) 
 
                     rank = currentRank + 1;
                     break;
@@ -83,7 +83,7 @@ function ranking_sorted = pareto_ranking(generation)
     ranking_cell = sortrows(ranking_cell,6);
     
     ranking_cell = reshape(ranking_cell',ranking_cell_sz);
-    ranking_sorted = cell2struct(ranking_cell,ranking_fields,1);
+    ranking_sorted = cell2struct(ranking_cell,currGen_fields,1);
     
 
 end

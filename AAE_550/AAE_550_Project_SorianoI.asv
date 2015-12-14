@@ -165,8 +165,9 @@ current_best = [];%currGen.paretoRank(pareto_matrix(:,1)==1,:);
 maxGens = 400;
 for gens=1:maxGens
     % Pareto Ranking (non-domination) of each individual
+    if(size(currGen,
     currGen = ParetoRanking(currGen);
-    
+    best_of_gen = [];
     % Size of current best can vary. These are all the rank 1's. After
     % tournament and crossover/mutation and ranking, we will replace these
     % individuals with the next generation's worst individuals. This will
@@ -182,11 +183,30 @@ for gens=1:maxGens
     % Each parent generates a child to complete the next generation. This
     % guarantees that the fittest individuals of the previous generation
     % live on. Crossover is achieved by randomly pairing parents.
-    best_quarter = currGen([1:pop_size/4]);
-    
-    
-    
-    parents = best_quarter;
+%     best_half = currGen([1:pop_size/2]);
+%     
+%     parents = best_half;
+    parents = [best_of_gen];
+    tournamentSet = currGen;
+    tourney_idx = randperm(pop_size);
+    while(length(parents)<pop_size/2)
+        pugilists = [];
+        for i=1:2
+            pugilists = [pugilists tournamentSet(tourney_idx(i))];
+            tourney_idx(i) = [];
+        end
+        
+        paretoRanks = [pugilists.paretoRank];
+        [minRank,minRank_idx] = min(paretoRanks);
+        
+        if (rand()>0.8)
+            victor = pugilists(minRank_idx);
+        else
+            victor = pugilists(randperm(length(pugilists),1));
+        end
+        
+        parents = [parents victor];
+    end
 
     printing = 0;
     newGen = [];
@@ -202,7 +222,7 @@ for gens=1:maxGens
         newGen = [newGen pA pB cA cB];
     end
 
-    lastGen = currGen;
+    %lastGen = currGen;
     currGen = newGen;
 
     % What is left:

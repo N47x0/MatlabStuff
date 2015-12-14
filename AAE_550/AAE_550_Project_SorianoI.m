@@ -14,7 +14,7 @@ global pop_size;
 printing = 1;
 
 c101 = load('solomonC101.dat');
-max_cap = 400;
+max_cap = 200;
 
 % Save the first node as depot.
 depot_node = c101(1,:);
@@ -38,7 +38,7 @@ end
 % we will have a population size of 4*num_genes. The minus one
 % accounts for the depot_node in the data set that is not part of the
 % customers/node base (gene:customer 1:1 mapping).
-pop_size = 2*(size(c101,1) - 1);
+pop_size = 4*(size(c101,1) - 1);
 
 init_gen = []; 
 %Initial Generation:
@@ -152,57 +152,61 @@ for c=1:pop_size
     % pareto_matrix has 4 columns per individual/chromosome:
     % node that when we first build this rank is Inf
     %                                           rank                num_routes      total_cost    chromo_idx
-    %pareto_matrix = [pareto_matrix; currGen(c).paretoRank currGen(c).numRoutes currGen(c).totCost c];
+    pareto_matrix = [pareto_matrix; currGen(c).paretoRank currGen(c).numRoutes currGen(c).totCost c];
     
 end
 
 % Pareto Ranking (non-domination) of each individual
-%currGen = ParetoRanking(currGen);
+pareto_matrix = ParetoRanking(pareto_matrix);
 
 
 % This is the main loop.
-current_best = [];%currGen.paretoRank(pareto_matrix(:,1)==1,:);
-maxGens = 400;
+maxGens = 100;
 for gens=1:maxGens
     % Pareto Ranking (non-domination) of each individual
-    currGen = ParetoRanking(currGen);
+    pareto_matrix = ParetoRanking(pareto_matrix);
     
     % Size of current best can vary. These are all the rank 1's. After
     % tournament and crossover/mutation and ranking, we will replace these
     % individuals with the next generation's worst individuals. This will
     % ensure they compete. Elitist method.
-    
-     ranks = [currGen.paretoRank];
-     best_of_gen = currGen(ranks(:)==1);
+    current_best = pareto_matrix(pareto_matrix(:,1)==1,:);
+    current_best = currGen(current_best(1,4));
 
     % Tournament
-    % Pareto-Ranking is used as the fitness criterion for sorting the
-    % current generation by fitness. The fittest individuals (upper half)
-    % are selected for Crossover. The bottom half is discarded. 
-    % Each parent generates a child to complete the next generation. This
-    % guarantees that the fittest individuals of the previous generation
-    % live on. Crossover is achieved by randomly pairing parents.
-    best_half = currGen([1:pop_size/2]);
-    
-    
-    
-    parents = best_half;
+    % The population is randomly broken into sets of 4. The fittest individual
+    %  (using pareto-ranking) is selected as a parent. Each parent is combined
+    %  with the others to produce 2 children per pairing, such that 
+    rank_sorted = sortrows(pareto_matrix,1);
+    best_quarter = rank_sorted([1:pop_size/4],:);
+    rank_sorted([1:pop_size/4],:) = [];
+
+    % Select the remaining quarter.
+    rand_idxs = randperm(pop_size/4);
+    rand_quarter = rank_sorted(rand_idxs, :);
+    parents = [best_quarter; rand_quarter];
 
     printing = 0;
     newGen = [];
+    pareto_matrix = [];
     % Form pairings
-    mix_parents_idx = randperm(size(parents,2));
-    for i=2:2:(size(parents,2))
-        pA = parents(mix_parents_idx(i-1));
-        pB = parents(mix_parents_idx(i));
+    mix_parents_idx = randperm(size(parents,1));
+    for i=2:2:(size(parents,1))
+        pA = currGen(parents(mix_parents_idx(i-1)));
+        pB = currGen(parents(mix_parents_idx(i)));
 
         [cA,cB] = CrossoverOp(pA,pB);
-        pA.paretoRank = Inf;
-        pB.paretoRank = Inf;
+        
+        gen_idx = i/2;
         newGen = [newGen pA pB cA cB];
+        pareto_matrix = [pareto_matrix; ... 
+                         pA.paretoRank pA.numRoutes pA.totCost gen_idx; ...
+                         pB.paretoRank pB.numRoutes pB.totCost gen_idx+1; ...
+                         cA.paretoRank cA.numRoutes cA.totCost gen_idx+2; ...
+                         cB.paretoRank cB.numRoutes cB.totCost gen_idx+3;];
+        gen_idx = gen_idx + 3;
     end
 
-    lastGen = currGen;
     currGen = newGen;
 
     % What is left:
@@ -213,19 +217,11 @@ for gens=1:maxGens
     % - Repeat.
     
     % Display results: printing = 1
-    
-    routeNums = [best_of_gen.numRoutes];
-    [min_route,min_route_idx] = min(routeNums);
-    
-    totCosts = [best_of_gen.totCost];
-    [min_cost, min_cost_idx] = min(totCosts);
-    
-    PlotRoute(best_of_gen(min_route_idx), 1);
+    PlotRoute(current_best, 1);
     after=0;
     
     if printing
-        disp(['GA Iteration    BestNRoutes BestCost']);
-        disp([sprintf('    %d               %d         %d',gens,best_of_gen(min_route_idx).numRoutes,best_of_gen(min_cost_idx).totCost)]);
+        disp(['GA Iteration: ',gens]);
     end
 end
 

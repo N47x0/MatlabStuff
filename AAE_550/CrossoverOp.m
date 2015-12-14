@@ -57,15 +57,19 @@ function child = MakeChild(rand_route, parent)
     nR = temp_child.numRoutes;
     for n=1:length(find(rand_route))
         reassign_metrics = [];
-        new_routes = [];
-        for r=1:nR           
-            rand_route=rand_route(find(rand_route));
+        for r=1:nR
+            % Debugging statement
+            if (nR > size(temp_child.routes,1))
+                breakp;
+            end
+            
             [feasible_insert, route_cost, new_route] = InsertionTest(rand_route(n),temp_child.routes(r,:));
             new_routes = [new_routes; new_route];
             reassign_metrics = [reassign_metrics; feasible_insert route_cost r];
             if (~feasible_insert)
                 reassign_metrics(r,3) = 0;
             end
+            
         end
         % If InsertionTest failed on all available routes.
         % Then create a new, single node route. Note: Single node
@@ -91,8 +95,6 @@ function child = MakeChild(rand_route, parent)
             route_idx = reassign_metrics(min_idx,3);
             temp_child.routes(route_idx,:) = new_routes(min_idx,:);
             temp_child.routeCosts(route_idx) = min_route_cost;
-            new_routes = [];
-            reassign_metrics = [];
         end
     end
         
@@ -100,6 +102,11 @@ function child = MakeChild(rand_route, parent)
     temp_child.chromo = [];
     for i=1:temp_child.numRoutes
         temp_child.chromo = [temp_child.chromo temp_child.routes(i,find(temp_child.routes(i,:)))];
+    end
+    
+    %Debugging Statement
+    if (length(temp_child.chromo) > 100)
+        breakp
     end
     
     temp_child.totCost = sum(temp_child.routeCosts);

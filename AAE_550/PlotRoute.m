@@ -13,12 +13,6 @@ function [] = PlotRoute(current_best, toPrint)
         grid on
 
         for i=1:length(current_best.chromo)
-            if(length(current_best.chromo)>100)
-                error('Chromosome too long');
-            elseif(length(current_best.chromo)<100)
-                error('Chromosome too short');
-            end
-                
             plot(c101(i,2),c101(i,3),'o'); 
         end
 
