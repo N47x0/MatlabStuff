@@ -22,6 +22,7 @@ function [individual] = DecodeChromosome(chromo)
         next_node = chromo(i);
         cost_to_next = cost(current_node, next_node);
         demand_at_next = c101(next_node,4);
+        service_time_at_next = c101(next_node,7);
 
         % Capacity Constraint
         feasible_service = ((route_load - demand_at_next) >= 0);
@@ -44,6 +45,7 @@ function [individual] = DecodeChromosome(chromo)
                                  ) && ( (route_travel_time...                       % Current_route_time
                                          + cost_to_next...                          % plus time to next (cost = time)
                                          + cost(next_node,depot_node(1)))...        % plus time from next to depot
+                                         + service_time_at_next...                     % plus service time
                                          < depot_node(6)...                         % is less than depot closing time.
                                       )...
                                ); 
@@ -61,7 +63,7 @@ function [individual] = DecodeChromosome(chromo)
         %   single node routes always feasible.
         if (feasible_service)
             % cumulative route time
-           route_travel_time = route_travel_time + cost_to_next;
+           route_travel_time = route_travel_time + cost_to_next + service_time_at_next;
 
            % Cumulative load depletion.
            route_load = route_load - demand_at_next;
@@ -91,10 +93,55 @@ function [individual] = DecodeChromosome(chromo)
     end
     % Sanity check: Sum of nodes visited must equal number of genes.
     assert(sum(route_metrics(:,2)) == numel(chromo))
+    
     individual.chromo = chromo;
     individual.routes = routes;
     individual.routeCosts = route_metrics(:,1);
     individual.numRoutes = size(routes, 1);
     individual.totCost = sum(route_metrics(:,1));
     individual.paretoRank = Inf;
+    
+    % Phase 2 insertion.
+    for i=1:(size(routes,1)-1)
+        feasible_service = 0;
+        route=routes(i);
+        last_of_route = route(length(find(route)));
+        route(length(find(route))) = [];
+        n_route = routes(i+1);
+%         if ()
+%         
+%         end
+    
+    end
+end
+
+function feasible = TestFeasibleTime(open_time...
+    , close_time...
+    , route_travel_time...
+    , current_node...
+    , next_node)
+
+    cost_to_next = cost(current_node, next_node);
+    service_time_at_next = c101(next_node,7);
+    
+    feasible= ( ( (open_time <= route_travel_time) ...              % Ensures arrival is possible
+                        && (route_travel_time < close_time) ...     % Ensures arrival before closing
+                 ) && ( (route_travel_time...                       % Current_route_time
+                         + cost_to_next...                          % plus time to next (cost = time)
+                         + cost(next_node,depot_node(1)))...        % plus time from next to depot
+                         + service_time_at_next...                  % plus service time
+                         < depot_node(6)...                         % is less than depot closing time.
+                      )...
+               ); 
+
+end
+
+function feasible = TestFeasibleLoad(route_load, next_node)
+    % Capacity Constraint
+    demand_at_next = c101(next_node, 4);
+    feasible = ((route_load - demand_at_next) >= 0);
+end
+
+function [new_route, route_metrics] = UpdateRoutes()
+    
 end

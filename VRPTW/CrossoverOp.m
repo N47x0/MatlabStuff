@@ -41,22 +41,7 @@ function [new_child] = ChromoTest(parent, node)
     % Options here:
     % (1) we can pareto-rank the candidates (likely expensive) and select
     %     on best criteria..whaterver that means...?
-         cand_childs = ParetoRanking(cand_childs);
-    
-    % (2) we can extract the abs min cost and num vehicles and use one
-    %     arbitrarily.
-    %
-%     if (rand() > 0.5)
-%         totCosts = [cand_childs.totCost];
-%         [min_cost, min_idx] = min(totCosts);
-%         new_child = cand_childs(min_idx);
-%     else
-%        minRoutes = [cand_childs.numRoutes];
-%        [min_routes, min_idx] = min(minRoutes);
-%        minRoutes(minRoutes~=min_routes) = [];
-%        
-%     end
-
+    cand_childs = ParetoRanking(cand_childs);
     ranks = [cand_childs.paretoRank];
     best_childs = cand_childs(ranks(:)==1);
     min_idx = 0;
@@ -68,7 +53,22 @@ function [new_child] = ChromoTest(parent, node)
         [min_routes, min_idx] = min(minRoutes);
     end
     new_child = best_childs(min_idx);
+
     
+    % (2) we can extract the abs min cost and num vehicles and choose
+    %  min route then min cost.
+%     minRoutes = [cand_childs.numRoutes];
+%     [min_routes, min_idx] = min(minRoutes);
+%     min_route_childs = cand_childs(min_idx);
+%     
+%     if (size(min_route_childs, 2) > 1)
+%         totCosts = [min_route_childs.totCost];
+%         [min_cost, min_idx] = min(totCosts);
+%         new_child = min_route_childs(min_idx);
+%     else
+%         new_child = min_route_childs;
+%     end
+
 end
 
 function [new_chromo] = InsertNodeIntoChromo(node, t_chromo, insertion_idx)

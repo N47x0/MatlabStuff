@@ -7,8 +7,9 @@ function [] = PlotRoute(current_best, toPrint)
     printing = toPrint;
 
     if printing
-        clf
+        
         figure(1)
+        clf
         hold on
         grid on
 
